@@ -1,14 +1,12 @@
-﻿using Entities;
+﻿using CsvHelper;
+using Entities;
+using Microsoft.EntityFrameworkCore;
 using ServiceContracts;
 using ServiceContracts.DTO;
 using ServiceContracts.Enums;
 using Services.Helpers;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Globalization;
+
 
 namespace Services
 {
@@ -23,15 +21,7 @@ namespace Services
             _countriesService = countriesService;
         }
 
-
-        private PersonResponse ConvertPersonToPersonResponse(Person person)
-        {
-            PersonResponse personResponse = person.ToPersonResponse();
-            personResponse.Country = _countriesService.GetCountryByCountryId(person.CountryId)?.CountryName;
-
-            return personResponse;
-        }
-        public PersonResponse AddPerson(PersonAddRequest? personAddRequest)
+        public async Task<PersonResponse> AddPerson(PersonAddRequest? personAddRequest)
         {
             // check if PersonAddRequest is not null 
             if (personAddRequest == null)
@@ -50,33 +40,34 @@ namespace Services
 
             //Add person object to persons list
             _db.Persons.Add(person);
-            _db.SaveChanges();
+            await _db.SaveChangesAsync();
 
             //Convert the Person object into PersonResponse type
-            return ConvertPersonToPersonResponse(person);
+            return person.ToPersonResponse();
         }
 
-        public List<PersonResponse> GetAllPersons()
+        public async Task<List<PersonResponse>> GetAllPersons()
         {
-            return _db.Persons.ToList().Select(c => ConvertPersonToPersonResponse(c)).ToList(); 
+            var person = await _db.Persons.Include("Country").ToListAsync();
+            return _db.Persons.ToList().Select(c => c.ToPersonResponse()).ToList(); 
         }
 
-        public PersonResponse? GetPersonByPersonId(Guid? PersonId)
+        public async Task<PersonResponse?> GetPersonByPersonId(Guid? PersonId)
         {
             if(PersonId == null)
             {
                 return null;
             }
 
-            Person? person = _db.Persons.FirstOrDefault(c => c.PersonId == PersonId);
+            Person? person = await _db.Persons.Include("Country").FirstOrDefaultAsync(c => c.PersonId == PersonId);
             if(person == null) { return null; }
 
-            return ConvertPersonToPersonResponse(person);
+            return person.ToPersonResponse();
         }
 
-        public List<PersonResponse> GetFilteredPersons(string searchBy, string? searchString)
+        public async Task<List<PersonResponse>> GetFilteredPersons(string searchBy, string? searchString)
         {
-            List<PersonResponse> allPersons = GetAllPersons();
+            List<PersonResponse> allPersons = await GetAllPersons();
             List<PersonResponse> matchingPersons = allPersons;
 
             if (string.IsNullOrEmpty(searchBy) || string.IsNullOrEmpty(searchString))
@@ -126,7 +117,7 @@ namespace Services
             return matchingPersons;
         }
 
-        public List<PersonResponse> GetSortedPersons(List<PersonResponse> allPersons, string sortBy, SortOrderOptions sortOrder)
+        public async Task<List<PersonResponse>> GetSortedPersons(List<PersonResponse> allPersons, string sortBy, SortOrderOptions sortOrder)
         {
             if (string.IsNullOrEmpty(sortBy))
                 return allPersons;
@@ -171,7 +162,7 @@ namespace Services
             return sortedPersons;
         }
 
-        public PersonResponse UpdatePerson(PersonUpdateRequest? personUpdateRequest)
+        public async Task<PersonResponse> UpdatePerson(PersonUpdateRequest? personUpdateRequest)
         {
             if (personUpdateRequest == null)
                 throw new ArgumentNullException(nameof(Person));
@@ -180,7 +171,7 @@ namespace Services
             ValidationHelper.ModelValidation(personUpdateRequest);
 
             //get matching person object to update
-            Person? matchingPerson = _db.Persons.FirstOrDefault(temp => temp.PersonId == personUpdateRequest.PersonId);
+            Person? matchingPerson = await _db.Persons.FirstOrDefaultAsync(temp => temp.PersonId == personUpdateRequest.PersonId);
             if (matchingPerson == null)
             {
                 throw new ArgumentException("Given person id doesn't exist");
@@ -195,22 +186,43 @@ namespace Services
             matchingPerson.Address = personUpdateRequest.Address;
             matchingPerson.ReceiveNewsLetters = personUpdateRequest.ReceiveNewsLetters;
 
-            _db.SaveChanges();
+            await _db.SaveChangesAsync();
 
-            return ConvertPersonToPersonResponse(matchingPerson);
+            return matchingPerson.ToPersonResponse();
         }
 
-        public bool DeletePerson(Guid? PersonId)
+      
+        public async Task<bool> DeletePerson(Guid? PersonId)
         {
             if (PersonId == null) throw new ArgumentNullException(nameof(PersonId));
  
-            Person? person = _db.Persons.FirstOrDefault(c => c.PersonId == PersonId);
+            Person? person = await _db.Persons.FirstOrDefaultAsync(c => c.PersonId == PersonId);
             if (person == null) return false;
 
             _db.Persons.Remove(person);
             _db.SaveChanges();
 
             return true;
+        }
+
+        public async Task<MemoryStream> GetPersonsCSV()
+        {
+            MemoryStream memoryStream = new MemoryStream();
+            StreamWriter streamWriter = new StreamWriter(memoryStream);
+            CsvWriter csvWriter = new CsvWriter(streamWriter, CultureInfo.InvariantCulture, leaveOpen: true);
+
+            csvWriter.WriteHeader<PersonResponse>();
+            csvWriter.NextRecord();
+
+            List<PersonResponse> person = _db.Persons
+                .Include("Country")
+                .Select(c => c.ToPersonResponse()).ToList();
+
+            await csvWriter.WriteRecordsAsync(person);
+
+            memoryStream.Position = 0;
+
+            return memoryStream;
         }
     }
 }
