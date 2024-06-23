@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using OfficeOpenXml;
+using RepositoryContracts;
 using ServiceContracts;
 using ServiceContracts.DTO;
 
@@ -9,98 +10,91 @@ namespace Services
 {
     public class CountriesService : ICountriesService
     {
-        private readonly ApplicationDbContext _db;
+        //private field
+        private readonly ICountriesRepository _countriesRepository;
 
-        public CountriesService(ApplicationDbContext db)
+        //constructor
+        public CountriesService(ICountriesRepository countriesRepository)
         {
-            _db = db;
-           
+            _countriesRepository = countriesRepository;
         }
+
         public async Task<CountryResponse> AddCountry(CountryAddRequest? countryAddRequest)
         {
             //Validation: countryAddRequest parameter can't be null
-            if(countryAddRequest == null)
+            if (countryAddRequest == null)
             {
                 throw new ArgumentNullException(nameof(countryAddRequest));
             }
 
-            // Validation:CountryName can't be null
-            if(countryAddRequest.CountryName == null)
+            //Validation: CountryName can't be null
+            if (countryAddRequest.CountryName == null)
             {
                 throw new ArgumentException(nameof(countryAddRequest.CountryName));
             }
 
-            // Validation: CountryName can't be duplicate
-            if(await _db.Countries.CountAsync(c => c.CountryName == countryAddRequest.CountryName) > 0) 
+            //Validation: CountryName can't be duplicate
+            if (await _countriesRepository.GetCountryByCountryName(countryAddRequest.CountryName) != null)
             {
                 throw new ArgumentException("Given country name already exists");
             }
 
-            // Convert object from CountryAddRequest to Country type
+            //Convert object from CountryAddRequest to Country type
             Country country = countryAddRequest.ToCountry();
 
-            // Generate CountryId
+            //generate CountryId
             country.CountryId = Guid.NewGuid();
 
-            // Add country object into _countries
-            _db.Countries.Add(country);
-            await _db.SaveChangesAsync();
+            //Add country object into _countries
+            await _countriesRepository.AddCountry(country);
 
             return country.ToCountryResponse();
         }
 
         public async Task<List<CountryResponse>> GetAllCountries()
         {
-            return await _db.Countries.Select(country => country.ToCountryResponse()).ToListAsync();
+            List<Country> countries = await _countriesRepository.GetAllCountries();
+            return countries
+              .Select(country => country.ToCountryResponse()).ToList();
         }
 
-        public async Task<CountryResponse?> GetCountryByCountryId(Guid? countryId)
+        public async Task<CountryResponse?> GetCountryByCountryId(Guid? countryID)
         {
-            if (countryId == null)
-            {
+            if (countryID == null)
                 return null;
-            }
 
-            Country? country_from_list = await _db.Countries.FirstOrDefaultAsync(c => c.CountryId == countryId);
+            Country? country_response_from_list = await _countriesRepository.GetCountryByCountryID(countryID.Value);
 
-            if(country_from_list == null)
-            {
+            if (country_response_from_list == null)
                 return null;
-            }
 
-            return country_from_list.ToCountryResponse();
+            return country_response_from_list.ToCountryResponse();
         }
 
         public async Task<int> UploadCountriesFromExcelFile(IFormFile formFile)
         {
-            MemoryStream memory = new MemoryStream();
-            await formFile.CopyToAsync(memory);
-
+            MemoryStream memoryStream = new MemoryStream();
+            await formFile.CopyToAsync(memoryStream);
             int countriesInserted = 0;
 
-            using (ExcelPackage excelPackage = new ExcelPackage(memory))
+            using (ExcelPackage excelPackage = new ExcelPackage(memoryStream))
             {
-                ExcelWorksheet worksheet = excelPackage.Workbook.Worksheets["Countries"];
+                ExcelWorksheet workSheet = excelPackage.Workbook.Worksheets["Countries"];
 
-                int rowCount = worksheet.Dimension.Rows;
-                
+                int rowCount = workSheet.Dimension.Rows;
 
-                for(int row = 2; row <= rowCount; row++)
+                for (int row = 2; row <= rowCount; row++)
                 {
-                    string? cellValue = Convert.ToString(worksheet.Cells[row,1].Value);
+                    string? cellValue = Convert.ToString(workSheet.Cells[row, 1].Value);
 
-                    if(!string.IsNullOrEmpty(cellValue))
+                    if (!string.IsNullOrEmpty(cellValue))
                     {
                         string? countryName = cellValue;
-                        if(_db.Countries.Where(c => c.CountryName == countryName).Count() == 0)
-                        {
-                            Country country = new Country()
-                            {
-                                CountryName = countryName
-                            };
 
-                            _db.Countries.Add(country);
-                            await _db.SaveChangesAsync();
+                        if (await _countriesRepository.GetCountryByCountryName(countryName) == null)
+                        {
+                            Country country = new Country() { CountryName = countryName };
+                            await _countriesRepository.AddCountry(country);
 
                             countriesInserted++;
                         }
