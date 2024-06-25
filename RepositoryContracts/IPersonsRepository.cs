@@ -27,11 +27,11 @@ namespace RepositoryContracts
 
 
         /// <summary>
-        /// Returns a person object based on the given person id
+        /// Returns a person object based on the given person Id
         /// </summary>
-        /// <param name="personID">PersonID (guid) to search</param>
+        /// <param name="personId">PersonId (Guid) to search</param>
         /// <returns>A person object or null</returns>
-        Task<Person?> GetPersonByPersonID(Guid personID);
+        Task<Person?> GetPersonByPersonId(Guid personId);
 
 
         /// <summary>
@@ -43,15 +43,15 @@ namespace RepositoryContracts
 
 
         /// <summary>
-        /// Deletes a person object based on the person id
+        /// Deletes a person object based on the person Id
         /// </summary>
-        /// <param name="personID">Person ID (guid) to search</param>
+        /// <param name="personId">Person Id (Guid) to search</param>
         /// <returns>Returns true, if the deletion is successful; otherwise false</returns>
-        Task<bool> DeletePersonByPersonID(Guid personID);
+        Task<bool> DeletePersonByPersonId(Guid personId);
 
 
         /// <summary>
-        /// Updates a person object (person name and other details) based on the given person id
+        /// Updates a person object (person name and other details) based on the given person Id
         /// </summary>
         /// <param name="person">Person object to update</param>
         /// <returns>Returns the updated person object</returns>

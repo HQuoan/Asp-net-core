@@ -63,7 +63,7 @@ namespace Services
             if (countryID == null)
                 return null;
 
-            Country? country_response_from_list = await _countriesRepository.GetCountryByCountryID(countryID.Value);
+            Country? country_response_from_list = await _countriesRepository.GetCountryByCountryId(countryID.Value);
 
             if (country_response_from_list == null)
                 return null;

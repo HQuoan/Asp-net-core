@@ -25,7 +25,7 @@ namespace Repositories
             return person;
         }
 
-        public async Task<bool> DeletePersonByPersonID(Guid personId)
+        public async Task<bool> DeletePersonByPersonId(Guid personId)
         {
             _db.Persons.RemoveRange(_db.Persons.Where(temp => temp.PersonId == personId));
             int rowsDeleted = await _db.SaveChangesAsync();
@@ -45,7 +45,7 @@ namespace Repositories
              .ToListAsync();
         }
 
-        public async Task<Person?> GetPersonByPersonID(Guid personId)
+        public async Task<Person?> GetPersonByPersonId(Guid personId)
         {
             return await _db.Persons.Include("Country")
              .FirstOrDefaultAsync(temp => temp.PersonId == personId);

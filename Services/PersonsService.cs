@@ -34,13 +34,13 @@ namespace Services
                 throw new ArgumentNullException(nameof(personAddRequest));
             }
 
-            //Model validation
+            //Model valIdation
             ValidationHelper.ModelValidation(personAddRequest);
 
             //convert personAddRequest into Person type
             Person person = personAddRequest.ToPerson();
 
-            //generate PersonID
+            //generate PersonId
             person.PersonId = Guid.NewGuid();
 
             //add person object to persons list
@@ -60,12 +60,12 @@ namespace Services
         }
 
 
-        public async Task<PersonResponse?> GetPersonByPersonId(Guid? personID)
+        public async Task<PersonResponse?> GetPersonByPersonId(Guid? personId)
         {
-            if (personID == null)
+            if (personId == null)
                 return null;
 
-            Person? person = await _personsRepository.GetPersonByPersonID(personID.Value);
+            Person? person = await _personsRepository.GetPersonByPersonId(personId.Value);
 
             if (person == null)
                 return null;
@@ -160,14 +160,14 @@ namespace Services
             if (personUpdateRequest == null)
                 throw new ArgumentNullException(nameof(personUpdateRequest));
 
-            //validation
+            //valIdation
             ValidationHelper.ModelValidation(personUpdateRequest);
 
             //get matching person object to update
-            Person? matchingPerson = await _personsRepository.GetPersonByPersonID(personUpdateRequest.PersonId);
+            Person? matchingPerson = await _personsRepository.GetPersonByPersonId(personUpdateRequest.PersonId);
             if (matchingPerson == null)
             {
-                throw new ArgumentException("Given person id doesn't exist");
+                throw new ArgumentException("Given person Id doesn't exist");
             }
 
             //update all details
@@ -184,18 +184,18 @@ namespace Services
             return matchingPerson.ToPersonResponse();
         }
 
-        public async Task<bool> DeletePerson(Guid? personID)
+        public async Task<bool> DeletePerson(Guid? personId)
         {
-            if (personID == null)
+            if (personId == null)
             {
-                throw new ArgumentNullException(nameof(personID));
+                throw new ArgumentNullException(nameof(personId));
             }
 
-            Person? person = await _personsRepository.GetPersonByPersonID(personID.Value);
+            Person? person = await _personsRepository.GetPersonByPersonId(personId.Value);
             if (person == null)
                 return false;
 
-            await _personsRepository.DeletePersonByPersonID(personID.Value);
+            await _personsRepository.DeletePersonByPersonId(personId.Value);
 
             return true;
         }
